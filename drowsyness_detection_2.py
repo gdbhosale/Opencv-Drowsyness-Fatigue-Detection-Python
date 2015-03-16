@@ -2,6 +2,14 @@ import numpy as np
 import cv2
 from matplotlib import pyplot as plt
 import time
+import pygame.mixer
+pygame.init()
+pygame.mixer.music.load("beep-01a.wav")
+
+#import pyglet
+#music = pyglet.resource.media('beep-01a.wav')
+#player = pyglet.media.Player()
+#print dir(music)
 
 face_cascade = cv2.CascadeClassifier('haarcascades/haarcascade_frontalface_default.xml')
 eye_cascade = cv2.CascadeClassifier('haarcascades2/haarcascade_eye.xml')
@@ -9,7 +17,29 @@ eye_cascade = cv2.CascadeClassifier('haarcascades2/haarcascade_eye.xml')
 simulate_real_time = "true"
 
 if(simulate_real_time == "true"):
-    cap = cv2.VideoCapture(0)
+    cap = cv2.VideoCapture(1)
+
+process_eye = 0
+eyeq_len = 5
+eyeq = []
+
+def push_val(val):
+    if(val < 800):
+        if len(eyeq) <= eyeq_len:
+            eyeq.append(val)
+        else:
+            eyeq.append(val)
+            eyeq.pop(0)
+    return avg_eyeq()
+
+def avg_eyeq():
+    #calculate average
+    avg = 0
+    for i in eyeq:
+        avg = avg + i
+    avg = avg / len(eyeq)
+    
+    return avg
 
 def detect_and_draw(img, gray):
     faces = face_cascade.detectMultiScale(gray, 1.3, 5)
@@ -25,7 +55,7 @@ def detect_and_draw(img, gray):
                 break;
             
             image_name = 'Eye_' + str(cnt_eye)
-            print image_name
+            #print image_name
             
             #change dimentionas
             ex = ex + (ew/6)
@@ -49,7 +79,7 @@ def detect_and_draw(img, gray):
                     max_val = value
             for index, value in enumerate(histn):
                 histn[index] = ((value * 256) / max_val)
-            print histn
+            #print histn
             # normalize histogram ends ---------
 
             
@@ -73,16 +103,20 @@ def detect_and_draw(img, gray):
                         total_black = total_black + 1
 
             #cv2.imshow(image_name, roi_eye_gray2)
-            print total_black
-            print total_white
+            if image_name == "Eye_0":
+                ag = push_val(total_white)
+                #print image_name, " : ", total_white, " : ", ag
 
+            #print "Black ", total_black
+            #print "White ", total_white
+            
             if(simulate_real_time == "true"):
                 pass
                 # put number on image
                 if(cnt_eye == 0):
-                    cv2.putText(img, ""+str(total_white)+", "+str(total_black), (10, 40), cv2.FONT_HERSHEY_COMPLEX_SMALL, 2, 255)
+                    cv2.putText(img, ""+str(total_white), (10, 40), cv2.FONT_HERSHEY_PLAIN, 2, 255)
                 else:
-                    cv2.putText(img, ""+str(total_white)+", "+str(total_black), (400, 40), cv2.FONT_HERSHEY_COMPLEX_SMALL, 2, 255)
+                    cv2.putText(img, ""+str(total_white), (520, 40), cv2.FONT_HERSHEY_PLAIN, 2, 255)
             else:
                 # Plot Histogram
                 plt.subplot(2,3,((cnt_eye*3)+1)),plt.hist(roi_eye_gray.ravel(), 256, [0,256])
@@ -96,6 +130,23 @@ def detect_and_draw(img, gray):
                 plt.title(image_name+' Image')
             
             cnt_eye = cnt_eye + 1
+        if len(eyes) == 0:
+            ag = push_val(0)
+        
+        # Decision Making
+        average = avg_eyeq()
+        if average > 100:
+            print "Eye_X: ", average
+            #player.pause()
+        else:
+            print "---------------------", average
+            pygame.mixer.music.play()
+            #if player.playing == False:
+            #    print "Play music"
+            #    player.queue(music)
+            #    player.play()
+
+        #time.sleep(0.5)
     cv2.imshow('frame', img)
     if(simulate_real_time == "false"):
         plt.show()
